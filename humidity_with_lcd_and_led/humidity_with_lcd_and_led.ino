@@ -1,16 +1,31 @@
 #include <dht.h>
 #include <LiquidCrystal.h>
 
+// HUMIDITY/TEMPERATURE SENSOR
 #define DHT_PIN 7
+
+// WARNING LED
 #define LED_PIN 8
 
+// LCD DISPLAY
 #define LCD_WIDTH 16
 #define LCD_HEIGHT 2
 
-LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+#define RS_PIN 12
+#define ENABLE_PIN 11
+#define D4_PIN 5
+#define D5_PIN 4
+#define D6_PIN 3
+#define D7_PIN 2
+
+LiquidCrystal lcd(RS_PIN, ENABLE_PIN, D4_PIN, D5_PIN, D6_PIN, D7_PIN);
 dht DHT;
 
-int old_temperature, new_temperature, old_humidity, new_humidity;
+// COMMON
+#define LOWEST_HUMIDITY_THRESHOLD 45
+#define HIGHEST_HUMIDITY_THRESHOLD 60
+
+int temperature = 0, humidity = 0;
 
 void setup() {
   Serial.begin(9600);
@@ -23,7 +38,7 @@ void setup() {
 
 void welcomeMessage() {
   lcd.begin(LCD_WIDTH, LCD_HEIGHT);
-  String welcomeMessage = "Humidity/Temperature warning sensor";
+  String welcomeMessage = "Humidity/Temperature + LED";
   lcd.print(welcomeMessage);
 
   for (int positionCounter = 0; positionCounter < welcomeMessage.length(); positionCounter++) {
@@ -34,55 +49,34 @@ void welcomeMessage() {
   lcd.clear();
 }
 
-
-bool sensorValuesChanged() {
-  return (new_temperature != old_temperature || new_humidity != old_humidity);
-}
-
-
 void indicateHumidityLevel() {
   digitalWrite(LED_PIN, LOW);
-  if (new_humidity < 45 || new_humidity > 60) {
+  if (humidity < LOWEST_HUMIDITY_THRESHOLD || humidity > HIGHEST_HUMIDITY_THRESHOLD) {
     digitalWrite(LED_PIN, HIGH);
   }
 }
 
-void serialOutput() {
-  old_temperature = new_temperature;
-  old_humidity = new_humidity;
-
-  Serial.print("Temperature: ");
-  Serial.print(new_temperature);
-  Serial.print("\t\t");
-  Serial.print("Humidity: ");
-  Serial.println(new_humidity);
-
-  indicateHumidityLevel();
-}
-
 void displayToLcd() {
-  lcd.setCursor(0,0); 
+  lcd.setCursor(0, 0);
   lcd.print("Temp: ");
-  lcd.print(new_temperature);
+  lcd.print(temperature);
   lcd.print((char)223);
   lcd.print("C");
-  lcd.setCursor(0,1);
+  lcd.setCursor(0, 1);
   lcd.print("Humidity: ");
-  lcd.print(new_humidity);
+  lcd.print(humidity);
   lcd.print("%");
 }
 
 void loop() {
   DHT.read11(DHT_PIN);
 
-  new_temperature = DHT.temperature;
-  new_humidity = DHT.humidity;
+  temperature = DHT.temperature;
+  humidity = DHT.humidity;
 
-  if (sensorValuesChanged()) {
-    serialOutput();
-  }
+  indicateHumidityLevel();
 
-  displayToLcd();  
+  displayToLcd();
 
   delay(3000);
 
